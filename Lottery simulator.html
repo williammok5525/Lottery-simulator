@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎰 彩票模拟器 (49选7)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        #particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+            50% { transform: translateY(-100px) translateX(50px); opacity: 0.8; }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FF69B4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .numbers-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 15px;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .number-card {
+            background: linear-gradient(145deg, #2a2a4e, #1a1a3e);
+            border-radius: 15px;
+            padding: 20px 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .number-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .number-card:hover::before {
+            opacity: 1;
+        }
+
+        .number-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+
+        /* ===== 本次中奖金色高亮 ===== */
+        .number-card.winning {
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), inset 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        /* ===== 概率TOP7红色高亮 ===== */
+        .number-card.top7 {
+            border: 3px solid #ff2d2d;
+            box-shadow: 0 0 20px rgba(255, 45, 45, 0.6), inset 0 0 15px rgba(255, 45, 45, 0.15);
+        }
+
+        .number-card.top7 .number {
+            color: #ff6b6b;
+        }
+
+        .number-card.top7::after {
+            content: '🔥';
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 0.8em;
+        }
+
+        /* 同时是中奖 + TOP7 */
+        .number-card.winning.top7 {
+            border: 3px solid #ff2d2d;
+            box-shadow: 0 0 30px rgba(255, 45, 45, 0.8), 0 0 15px rgba(255, 215, 0, 0.5), inset 0 0 20px rgba(255, 45, 45, 0.2);
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 1); }
+        }
+
+        .number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .count {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .probability {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .prob-0 { color: #3498db; }
+        .prob-1 { color: #2ecc71; }
+        .prob-2 { color: #f1c40f; }
+        .prob-3 { color: #e67e22; }
+        .prob-4 { color: #e74c3c; }
+
+        .winning-display {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .winning-title {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #FFD700;
+        }
+
+        .winning-numbers {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .winning-ball {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #FFD700, #FFA500);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #1a1a3e;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.5);
+        }
+
+        .stats {
+            text-align: center;
+            font-size: 1.3em;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+        }
+
+        .stats span {
+            color: #FFD700;
+            font-weight: bold;
+            font-size: 1.3em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #56ab2f, #a8e063);
+            color: white;
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 8px 25px rgba(86, 171, 47, 0.5);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            box-shadow: 0 8px 25px rgba(245, 87, 108, 0.5);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff0844, #ffb199);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 25px rgba(255, 8, 68, 0.5);
+        }
+
+        .speed-control {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+        }
+
+        .speed-control label {
+            font-size: 1.2em;
+            margin-right: 15px;
+        }
+
+        input[type="range"] {
+            width: 300px;
+            height: 8px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            outline: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #FFD700;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #FFD700;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+        }
+
+        .theory-info {
+            text-align: center;
+            font-size: 1em;
+            color: #aaa;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+        }
+
+        .theory-info strong {
+            color: #FFD700;
+        }
+
+        /* ===== TOP7 图例 ===== */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+        }
+
+        .legend-gold {
+            border: 2px solid #FFD700;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+        }
+
+        .legend-red {
+            border: 2px solid #ff2d2d;
+            box-shadow: 0 0 8px rgba(255, 45, 45, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div id="particles"></div>
+
+    <div class="container">
+        <h1>🎰 彩票模拟器 (49选7)</h1>
+
+        <!-- 图例 -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box legend-gold"></div>
+                <span>本次中奖号码</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box legend-red"></div>
+                <span>概率 TOP 7 🔥</span>
+            </div>
+        </div>
+
+        <div class="winning-display">
+            <div class="winning-title">本次中奖号码：</div>
+            <div class="winning-numbers" id="winningNumbers">
+                <div style="color: #aaa;">暂无抽取记录</div>
+            </div>
+        </div>
+
+        <div class="stats">
+            总抽取次数：<span id="totalDraws">0</span> 次
+        </div>
+
+        <div class="numbers-grid" id="numbersGrid"></div>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="drawOnce()">🎲 单次抽取</button>
+            <button class="btn-success" onclick="drawMultiple(100)">⚡ 连抽100次</button>
+            <button class="btn-success" onclick="drawMultiple(1000)">🔥 连抽1000次</button>
+            <button class="btn-warning" onclick="drawMultiple(10000)">💥 连抽10000次</button>
+            <button class="btn-danger" onclick="clearData()">🗑️ 清除数据</button>
+        </div>
+
+        <div class="speed-control">
+            <label>刷新速度：</label>
+            <input type="range" id="speedControl" min="1" max="100" value="50">
+            <span id="speedValue">50ms</span>
+        </div>
+
+        <div class="theory-info">
+            理论概率：<strong>14.29%</strong> (7/49) | 随着抽取次数增加，实际概率将趋近理论概率
+        </div>
+    </div>
+
+    <script>
+        let numberStats = {};
+        let totalDraws = 0;
+        let currentWinning = [];
+
+        function init() {
+            loadData();
+            createNumberGrid();
+            createParticles();
+            updateDisplay();
+
+            document.getElementById('speedControl').addEventListener('input', function(e) {
+                document.getElementById('speedValue').textContent = e.target.value + 'ms';
+            });
+        }
+
+        function createNumberGrid() {
+            const grid = document.getElementById('numbersGrid');
+            grid.innerHTML = '';
+
+            for (let i = 1; i <= 49; i++) {
+                if (!numberStats[i]) numberStats[i] = 0;
+
+                const card = document.createElement('div');
+                card.className = 'number-card';
+                card.id = `card-${i}`;
+
+                const probability = totalDraws > 0 ? ((numberStats[i] / totalDraws) * 100).toFixed(2) : '0.00';
+                const probLevel = getProbabilityLevel(probability);
+
+                card.innerHTML = `
+                    <div class="number">${i}</div>
+                    <div class="count">中奖: <span id="count-${i}">${numberStats[i]}</span> 次</div>
+                    <div class="probability prob-${probLevel}"><span id="prob-${i}">${probability}%</span></div>
+                `;
+
+                grid.appendChild(card);
+            }
+        }
+
+        function getProbabilityLevel(prob) {
+            const p = parseFloat(prob);
+            if (p < 12) return 0;
+            if (p < 14) return 1;
+            if (p < 15) return 2;
+            if (p < 17) return 3;
+            return 4;
+        }
+
+        function drawOnce() {
+            const winning = drawNumbers();
+            currentWinning = winning;
+
+            winning.forEach(num => { numberStats[num]++; });
+            totalDraws++;
+
+            updateDisplay();
+            highlightWinning(winning);
+            highlightTop7();
+            saveData();
+        }
+
+        async function drawMultiple(times) {
+            const speed = parseInt(document.getElementById('speedControl').value);
+            const batchSize = 100;
+            let processed = 0;
+
+            for (let batch = 0; batch < Math.ceil(times / batchSize); batch++) {
+                const currentBatch = Math.min(batchSize, times - processed);
+
+                for (let i = 0; i < currentBatch; i++) {
+                    const winning = drawNumbers();
+                    winning.forEach(num => { numberStats[num]++; });
+                    totalDraws++;
+                    currentWinning = winning;
+                }
+
+                processed += currentBatch;
+
+                updateDisplay();
+                highlightWinning(currentWinning);
+                highlightTop7();
+
+                if (processed < times) {
+                    await new Promise(resolve => setTimeout(resolve, speed));
+                }
+            }
+
+            saveData();
+        }
+
+        function drawNumbers() {
+            const numbers = [];
+            while (numbers.length < 7) {
+                const num = Math.floor(Math.random() * 49) + 1;
+                if (!numbers.includes(num)) numbers.push(num);
+            }
+            return numbers.sort((a, b) => a - b);
+        }
+
+        function updateDisplay() {
+            document.getElementById('totalDraws').textContent = totalDraws;
+
+            for (let i = 1; i <= 49; i++) {
+                const countElem = document.getElementById(`count-${i}`);
+                const probElem = document.getElementById(`prob-${i}`);
+
+                if (countElem) countElem.textContent = numberStats[i];
+
+                if (probElem) {
+                    const probability = totalDraws > 0 ? ((numberStats[i] / totalDraws) * 100).toFixed(2) : '0.00';
+                    probElem.textContent = probability + '%';
+                    probElem.parentElement.className = `probability prob-${getProbabilityLevel(probability)}`;
+                }
+            }
+
+            displayWinningNumbers();
+        }
+
+        function displayWinningNumbers() {
+            const container = document.getElementById('winningNumbers');
+            if (currentWinning.length === 0) {
+                container.innerHTML = '<div style="color: #aaa;">暂无抽取记录</div>';
+                return;
+            }
+            container.innerHTML = currentWinning.map(num =>
+                `<div class="winning-ball">${num}</div>`
+            ).join('');
+        }
+
+        function highlightWinning(winning) {
+            document.querySelectorAll('.number-card').forEach(card => {
+                card.classList.remove('winning');
+            });
+            winning.forEach(num => {
+                const card = document.getElementById(`card-${num}`);
+                if (card) card.classList.add('winning');
+            });
+        }
+
+        // ===== 新增：概率TOP7红框高亮 =====
+        function highlightTop7() {
+            // 清除旧的 top7
+            document.querySelectorAll('.number-card').forEach(card => {
+                card.classList.remove('top7');
+            });
+
+            if (totalDraws === 0) return;
+
+            // 按中奖次数降序排列，次数相同按号码升序
+            const sorted = Object.entries(numberStats)
+                .map(([num, count]) => ({ num: parseInt(num), count }))
+                .sort((a, b) => {
+                    if (b.count !== a.count) return b.count - a.count;
+                    return a.num - b.num;
+                });
+
+            // 取前7个
+            const top7 = sorted.slice(0, 7);
+
+            top7.forEach(item => {
+                const card = document.getElementById(`card-${item.num}`);
+                if (card) card.classList.add('top7');
+            });
+        }
+
+        function clearData() {
+            if (!confirm('确定要清除所有数据吗？此操作不可恢复！')) return;
+
+            numberStats = {};
+            totalDraws = 0;
+            currentWinning = [];
+
+            for (let i = 1; i <= 49; i++) numberStats[i] = 0;
+
+            localStorage.removeItem('lotteryData');
+            updateDisplay();
+
+            document.querySelectorAll('.number-card').forEach(card => {
+                card.classList.remove('winning', 'top7');
+            });
+        }
+
+        function saveData() {
+            localStorage.setItem('lotteryData', JSON.stringify({
+                numberStats,
+                totalDraws,
+                currentWinning
+            }));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('lotteryData');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    numberStats = data.numberStats || {};
+                    totalDraws = data.totalDraws || 0;
+                    currentWinning = data.currentWinning || [];
+                } catch (e) {
+                    console.error('加载数据失败:', e);
+                }
+            }
+            for (let i = 1; i <= 49; i++) {
+                if (!numberStats[i]) numberStats[i] = 0;
+            }
+        }
+
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.width = Math.random() * 3 + 1 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 20 + 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        window.onload = function() {
+            init();
+            // 页面加载时也高亮TOP7（恢复历史数据后）
+            highlightTop7();
+            if (currentWinning.length > 0) highlightWinning(currentWinning);
+        };
+    </script>
+</body>
+</html>
